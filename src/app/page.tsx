@@ -261,6 +261,13 @@ export default function Home() {
                     <span className="text-muted-foreground">--h --m</span>
                   )}
                 </div>
+                {timerState !== 'stopped' && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    <p>
+                      Accrued from timer: {formatDuration(Math.floor((initialCountdownSeconds - countdownSeconds) / 60))}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-2">
