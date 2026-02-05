@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2, Timer } from 'lucide-react';
+import { PlusCircle, Trash2, Timer, Play, Pause, RotateCcw } from 'lucide-react';
 import UserGuide from '@/components/user-guide';
 
 type Duration = {
@@ -20,6 +20,20 @@ export default function Home() {
   ]);
   const [targetDuration, setTargetDuration] = useState({ hours: '', minutes: '' });
   const [nextId, setNextId] = useState(2);
+  const [timerState, setTimerState] = useState<'stopped' | 'running' | 'paused'>('stopped');
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (timerState === 'running' && countdownSeconds > 0) {
+      interval = setInterval(() => {
+        setCountdownSeconds((prev) => prev - 1);
+      }, 1000);
+    } else if (timerState === 'running' && countdownSeconds === 0) {
+      setTimerState('stopped');
+    }
+    return () => clearInterval(interval);
+  }, [timerState, countdownSeconds]);
 
   const handleAddDuration = () => {
     setDurations([...durations, { id: nextId, hours: '', minutes: '' }]);
@@ -72,6 +86,36 @@ export default function Home() {
     return `${hours}h ${minutes}m`;
   };
 
+  const formatDurationWithSeconds = (totalSeconds: number) => {
+    if (totalSeconds < 0) totalSeconds = 0;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  const handleStart = () => {
+    if (remainingMinutes > 0) {
+      setCountdownSeconds(remainingMinutes * 60);
+      setTimerState('running');
+    }
+  };
+
+  const handlePause = () => {
+    setTimerState('paused');
+  };
+  
+  const handleResume = () => {
+    setTimerState('running');
+  };
+
+  const handleReset = () => {
+    setTimerState('stopped');
+    setCountdownSeconds(0);
+  }
+
+  const isTimerRunning = timerState === 'running';
+
   return (
     <main className="flex min-h-screen w-full items-start justify-center p-4 sm:p-8 md:p-12 bg-background">
       <div className="w-full max-w-2xl space-y-8 mt-8">
@@ -107,6 +151,7 @@ export default function Home() {
                       value={duration.hours}
                       onChange={(e) => handleDurationChange(duration.id, 'hours', e.target.value)}
                       min="0"
+                      disabled={isTimerRunning}
                     />
                   </div>
                   <div>
@@ -118,6 +163,7 @@ export default function Home() {
                       value={duration.minutes}
                       onChange={(e) => handleDurationChange(duration.id, 'minutes', e.target.value)}
                       min="0"
+                      disabled={isTimerRunning}
                     />
                   </div>
                 </div>
@@ -127,7 +173,7 @@ export default function Home() {
                   onClick={() => handleRemoveDuration(duration.id)}
                   className="self-end text-muted-foreground hover:text-destructive"
                   aria-label="Remove duration"
-                  disabled={durations.length <= 1}
+                  disabled={durations.length <= 1 || isTimerRunning}
                 >
                   <Trash2 className="h-5 w-5" />
                 </Button>
@@ -135,7 +181,7 @@ export default function Home() {
             ))}
           </CardContent>
           <CardFooter>
-            <Button variant="outline" onClick={handleAddDuration}>
+            <Button variant="outline" onClick={handleAddDuration} disabled={isTimerRunning}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Duration
             </Button>
           </CardFooter>
@@ -155,7 +201,7 @@ export default function Home() {
 
           <Card className="flex flex-col">
             <CardHeader>
-              <CardTitle>Target & Remaining</CardTitle>
+              <CardTitle>Target &amp; Remaining</CardTitle>
               <CardDescription>Set a target to see remaining time.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -169,6 +215,7 @@ export default function Home() {
                     value={targetDuration.hours}
                     onChange={(e) => handleTargetChange('hours', e.target.value)}
                     min="0"
+                    disabled={isTimerRunning}
                   />
                 </div>
                 <div>
@@ -180,13 +227,16 @@ export default function Home() {
                     value={targetDuration.minutes}
                     onChange={(e) => handleTargetChange('minutes', e.target.value)}
                     min="0"
+                    disabled={isTimerRunning}
                   />
                 </div>
               </div>
               <div className="text-center pt-2">
                 <p className="text-sm text-muted-foreground">Time Remaining</p>
                 <div className="text-3xl font-bold transition-all duration-300 min-h-[36px]">
-                  {targetTotalMinutes > 0 ? (
+                  {timerState !== 'stopped' ? (
+                    <span className="text-primary">{formatDurationWithSeconds(countdownSeconds)}</span>
+                  ) : targetTotalMinutes > 0 ? (
                     remainingMinutes >= 0 ? (
                       <span className="text-primary">{formatDuration(remainingMinutes)}</span>
                     ) : (
@@ -200,6 +250,28 @@ export default function Home() {
                 </div>
               </div>
             </CardContent>
+            <CardFooter className="flex-col items-stretch gap-2">
+              {timerState === 'stopped' && (
+                  <Button onClick={handleStart} disabled={remainingMinutes <= 0}>
+                      <Play className="mr-2 h-4 w-4" /> Start Timer
+                  </Button>
+              )}
+              {timerState === 'running' && (
+                  <Button onClick={handlePause}>
+                      <Pause className="mr-2 h-4 w-4" /> Pause Timer
+                  </Button>
+              )}
+              {timerState === 'paused' && (
+                  <div className="grid grid-cols-2 gap-2">
+                      <Button onClick={handleResume}>
+                          <Play className="mr-2 h-4 w-4" /> Resume
+                      </Button>
+                      <Button variant="outline" onClick={handleReset}>
+                          <RotateCcw className="mr-2 h-4 w-4" /> Reset
+                      </Button>
+                  </div>
+              )}
+            </CardFooter>
           </Card>
         </div>
         
@@ -209,4 +281,3 @@ export default function Home() {
       </div>
     </main>
   );
-}
