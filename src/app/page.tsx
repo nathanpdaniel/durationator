@@ -22,6 +22,7 @@ export default function Home() {
   const [nextId, setNextId] = useState(2);
   const [timerState, setTimerState] = useState<'stopped' | 'running' | 'paused'>('stopped');
   const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [initialCountdownSeconds, setInitialCountdownSeconds] = useState(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
@@ -80,6 +81,15 @@ export default function Home() {
     return targetTotalMinutes - totalMinutes;
   }, [targetTotalMinutes, totalMinutes]);
 
+  const displayedTotalMinutes = useMemo(() => {
+    if (timerState !== 'stopped') {
+      const elapsedSeconds = initialCountdownSeconds - countdownSeconds;
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+      return totalMinutes + elapsedMinutes;
+    }
+    return totalMinutes;
+  }, [timerState, totalMinutes, initialCountdownSeconds, countdownSeconds]);
+
   const formatDuration = (mins: number) => {
     const hours = Math.floor(mins / 60);
     const minutes = mins % 60;
@@ -96,7 +106,9 @@ export default function Home() {
 
   const handleStart = () => {
     if (remainingMinutes > 0) {
-      setCountdownSeconds(remainingMinutes * 60);
+      const startSeconds = remainingMinutes * 60;
+      setInitialCountdownSeconds(startSeconds);
+      setCountdownSeconds(startSeconds);
       setTimerState('running');
     }
   };
@@ -112,6 +124,7 @@ export default function Home() {
   const handleReset = () => {
     setTimerState('stopped');
     setCountdownSeconds(0);
+    setInitialCountdownSeconds(0);
   }
 
   const isTimerRunning = timerState === 'running';
@@ -194,7 +207,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="flex-grow flex items-center justify-center">
               <div className="text-5xl font-bold text-primary transition-all duration-300">
-                {formatDuration(totalMinutes)}
+                {formatDuration(displayedTotalMinutes)}
               </div>
             </CardContent>
           </Card>
@@ -281,3 +294,4 @@ export default function Home() {
       </div>
     </main>
   );
+}
