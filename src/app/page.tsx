@@ -5,9 +5,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2, Timer, Play, Pause, RotateCcw } from 'lucide-react';
+import { PlusCircle, Trash2, Timer, Play, Pause, RotateCcw, CalendarIcon } from 'lucide-react';
 import UserGuide from '@/components/user-guide';
 import WeeklyProgress from '@/components/weekly-progress';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type Duration = {
   id: number;
@@ -58,6 +62,13 @@ export default function Home() {
       return d;
     });
     setDurations(newDurations);
+  };
+
+  const handleDateChange = (id: number, date: Date | undefined) => {
+    if (!date) return;
+    setDurations(
+      durations.map((d) => (d.id === id ? { ...d, createdAt: date } : d))
+    );
   };
 
   const handleTargetChange = (field: 'hours' | 'minutes', value: string) => {
@@ -179,7 +190,36 @@ export default function Home() {
           <CardContent className="space-y-4">
             {durations.map((duration) => (
               <div key={duration.id} className="flex items-center gap-2 animate-in fade-in duration-300">
-                <div className="grid grid-cols-2 gap-2 flex-grow">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
+                  <div>
+                    <Label htmlFor={`date-${duration.id}`} className="text-sm font-medium">Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !duration.createdAt && "text-muted-foreground"
+                          )}
+                          disabled={isTimerRunning}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {duration.createdAt ? format(duration.createdAt, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={duration.createdAt}
+                          onSelect={(date) => handleDateChange(duration.id, date)}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <div>
                     <Label htmlFor={`hours-${duration.id}`} className="text-sm font-medium">Hours</Label>
                     <Input
