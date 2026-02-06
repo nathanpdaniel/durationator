@@ -15,6 +15,13 @@ import { cn } from '@/lib/utils';
 
 type Duration = {
   id: number;
+  entry: string;
+  createdAt: Date;
+};
+
+// This is for WeeklyProgress component that expects hours and minutes
+type DurationForWeeklyProgress = {
+  id: number;
   hours: string;
   minutes: string;
   createdAt: Date;
@@ -22,9 +29,9 @@ type Duration = {
 
 export default function Home() {
   const [durations, setDurations] = useState<Duration[]>([
-    { id: 1, hours: '', minutes: '', createdAt: new Date() },
+    { id: 1, entry: '', createdAt: new Date() },
   ]);
-  const [targetDuration, setTargetDuration] = useState({ hours: '', minutes: '' });
+  const [targetDuration, setTargetDuration] = useState('');
   const [nextId, setNextId] = useState(2);
   const [timerState, setTimerState] = useState<'stopped' | 'running' | 'paused'>('stopped');
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -43,8 +50,50 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [timerState, countdownSeconds]);
 
+  const parseDurationToMinutes = (entry: string): number => {
+    if (!entry) return 0;
+
+    const s = entry.trim().toLowerCase();
+
+    // Format: 7:30
+    const timeMatch = s.match(/^(\d+):(\d+)$/);
+    if (timeMatch) {
+      return (parseInt(timeMatch[1], 10) || 0) * 60 + (parseInt(timeMatch[2], 10) || 0);
+    }
+
+    let totalMinutes = 0;
+
+    // Regex to find hours and minutes components
+    const hourRegex = /(\d+(?:\.\d+)?)\s*h/;
+    const minuteRegex = /(\d+)\s*m/;
+    
+    const hourMatch = s.match(hourRegex);
+    if (hourMatch) {
+      totalMinutes += parseFloat(hourMatch[1]) * 60;
+    }
+
+    const minuteMatch = s.match(minuteRegex);
+    if (minuteMatch) {
+      totalMinutes += parseInt(minuteMatch[1], 10);
+    }
+    
+    // Handle '7h30' or '7h 30' where minutes are not explicitly marked with 'm'
+    if (hourMatch && !minuteMatch) {
+      const rest = s.replace(hourRegex, '').trim();
+      if (rest.length > 0 && /^\d+$/.test(rest)) {
+        totalMinutes += parseInt(rest, 10);
+      }
+    }
+    
+    if (hourMatch || minuteMatch) {
+      return Math.round(totalMinutes);
+    }
+
+    return 0;
+  };
+
   const handleAddDuration = () => {
-    setDurations([...durations, { id: nextId, hours: '', minutes: '', createdAt: new Date() }]);
+    setDurations([...durations, { id: nextId, entry: '', createdAt: new Date() }]);
     setNextId(nextId + 1);
   };
 
@@ -52,12 +101,10 @@ export default function Home() {
     setDurations(durations.filter((d) => d.id !== id));
   };
 
-  const handleDurationChange = (id: number, field: 'hours' | 'minutes', value: string) => {
+  const handleDurationChange = (id: number, value: string) => {
     const newDurations = durations.map((d) => {
       if (d.id === id) {
-        // Allow only non-negative integers
-        const sanitizedValue = value.replace(/[^0-9]/g, '');
-        return { ...d, [field]: sanitizedValue };
+        return { ...d, entry: value };
       }
       return d;
     });
@@ -71,23 +118,18 @@ export default function Home() {
     );
   };
 
-  const handleTargetChange = (field: 'hours' | 'minutes', value: string) => {
-    const sanitizedValue = value.replace(/[^0-9]/g, '');
-    setTargetDuration({ ...targetDuration, [field]: sanitizedValue });
+  const handleTargetChange = (value: string) => {
+    setTargetDuration(value);
   };
 
   const totalMinutes = useMemo(() => {
     return durations.reduce((acc, duration) => {
-      const hours = parseInt(duration.hours, 10) || 0;
-      const minutes = parseInt(duration.minutes, 10) || 0;
-      return acc + (hours * 60) + minutes;
+      return acc + parseDurationToMinutes(duration.entry);
     }, 0);
   }, [durations]);
 
   const targetTotalMinutes = useMemo(() => {
-    const hours = parseInt(targetDuration.hours, 10) || 0;
-    const minutes = parseInt(targetDuration.minutes, 10) || 0;
-    return (hours * 60) + minutes;
+    return parseDurationToMinutes(targetDuration);
   }, [targetDuration]);
 
   const remainingMinutes = useMemo(() => {
@@ -105,8 +147,9 @@ export default function Home() {
   }, [timerState, totalMinutes, initialCountdownSeconds, countdownSeconds]);
 
   const formatDuration = (mins: number) => {
+    if (mins < 0) mins = 0;
     const hours = Math.floor(mins / 60);
-    const minutes = mins % 60;
+    const minutes = Math.round(mins % 60);
     return `${hours}h ${minutes}m`;
   };
 
@@ -137,8 +180,7 @@ export default function Home() {
       
       const newDuration = {
         id: nextId,
-        hours: String(hours),
-        minutes: String(minutes),
+        entry: minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`,
         createdAt: new Date(),
       };
 
@@ -164,6 +206,15 @@ export default function Home() {
   }
 
   const isTimerRunning = timerState === 'running';
+
+  const durationsForWeeklyProgress: DurationForWeeklyProgress[] = useMemo(() => {
+    return durations.map(d => {
+        const totalMins = parseDurationToMinutes(d.entry);
+        const hours = String(Math.floor(totalMins / 60));
+        const minutes = String(totalMins % 60);
+        return { id: d.id, createdAt: d.createdAt, hours, minutes };
+    })
+  }, [durations]);
 
   return (
     <main className="flex min-h-screen w-full items-start justify-center p-4 sm:p-8 md:p-12 bg-background">
@@ -191,7 +242,7 @@ export default function Home() {
             {durations.map((duration) => (
               <div key={duration.id} className="flex items-center gap-2 animate-in fade-in duration-300">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
-                  <div>
+                  <div className='sm:col-span-1'>
                     <Label htmlFor={`date-${duration.id}`} className="text-sm font-medium">Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -220,27 +271,14 @@ export default function Home() {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div>
-                    <Label htmlFor={`hours-${duration.id}`} className="text-sm font-medium">Hours</Label>
+                  <div className='sm:col-span-2'>
+                    <Label htmlFor={`duration-entry-${duration.id}`} className="text-sm font-medium">Duration</Label>
                     <Input
-                      id={`hours-${duration.id}`}
-                      type="number"
-                      placeholder="0"
-                      value={duration.hours}
-                      onChange={(e) => handleDurationChange(duration.id, 'hours', e.target.value)}
-                      min="0"
-                      disabled={isTimerRunning}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`minutes-${duration.id}`} className="text-sm font-medium">Minutes</Label>
-                    <Input
-                      id={`minutes-${duration.id}`}
-                      type="number"
-                      placeholder="0"
-                      value={duration.minutes}
-                      onChange={(e) => handleDurationChange(duration.id, 'minutes', e.target.value)}
-                      min="0"
+                      id={`duration-entry-${duration.id}`}
+                      type="text"
+                      placeholder="e.g., 2h 30m or 2:30"
+                      value={duration.entry}
+                      onChange={(e) => handleDurationChange(duration.id, e.target.value)}
                       disabled={isTimerRunning}
                     />
                   </div>
@@ -283,31 +321,16 @@ export default function Home() {
               <CardDescription>Set a target to see remaining time.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="target-hours">Target Hours</Label>
-                  <Input
-                    id="target-hours"
-                    type="number"
-                    placeholder="e.g., 8"
-                    value={targetDuration.hours}
-                    onChange={(e) => handleTargetChange('hours', e.target.value)}
-                    min="0"
-                    disabled={isTimerRunning}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="target-minutes">Target Minutes</Label>
-                  <Input
-                    id="target-minutes"
-                    type="number"
-                    placeholder="e.g., 0"
-                    value={targetDuration.minutes}
-                    onChange={(e) => handleTargetChange('minutes', e.target.value)}
-                    min="0"
-                    disabled={isTimerRunning}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="target-duration">Target Duration</Label>
+                <Input
+                  id="target-duration"
+                  type="text"
+                  placeholder="e.g., 8h or 8:00"
+                  value={targetDuration}
+                  onChange={(e) => handleTargetChange(e.target.value)}
+                  disabled={isTimerRunning}
+                />
               </div>
               <div className="text-center pt-2">
                 <p className="text-sm text-muted-foreground">Time Remaining</p>
@@ -361,7 +384,7 @@ export default function Home() {
         </div>
         
         <WeeklyProgress
-          durations={durations}
+          durations={durationsForWeeklyProgress}
           weeklyTargetHours={weeklyTargetHours}
           onWeeklyTargetChange={setWeeklyTargetHours}
         />
