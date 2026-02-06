@@ -7,22 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Trash2, Timer, Play, Pause, RotateCcw } from 'lucide-react';
 import UserGuide from '@/components/user-guide';
+import WeeklyProgress from '@/components/weekly-progress';
 
 type Duration = {
   id: number;
   hours: string;
   minutes: string;
+  createdAt: Date;
 };
 
 export default function Home() {
   const [durations, setDurations] = useState<Duration[]>([
-    { id: 1, hours: '', minutes: '' },
+    { id: 1, hours: '', minutes: '', createdAt: new Date() },
   ]);
   const [targetDuration, setTargetDuration] = useState({ hours: '', minutes: '' });
   const [nextId, setNextId] = useState(2);
   const [timerState, setTimerState] = useState<'stopped' | 'running' | 'paused'>('stopped');
   const [countdownSeconds, setCountdownSeconds] = useState(0);
   const [initialCountdownSeconds, setInitialCountdownSeconds] = useState(0);
+  const [weeklyTargetHours, setWeeklyTargetHours] = useState('40');
 
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
@@ -37,7 +40,7 @@ export default function Home() {
   }, [timerState, countdownSeconds]);
 
   const handleAddDuration = () => {
-    setDurations([...durations, { id: nextId, hours: '', minutes: '' }]);
+    setDurations([...durations, { id: nextId, hours: '', minutes: '', createdAt: new Date() }]);
     setNextId(nextId + 1);
   };
 
@@ -125,6 +128,7 @@ export default function Home() {
         id: nextId,
         hours: String(hours),
         minutes: String(minutes),
+        createdAt: new Date(),
       };
 
       setDurations([...durations, newDuration]);
@@ -316,6 +320,12 @@ export default function Home() {
           </Card>
         </div>
         
+        <WeeklyProgress
+          durations={durations}
+          weeklyTargetHours={weeklyTargetHours}
+          onWeeklyTargetChange={setWeeklyTargetHours}
+        />
+
         <div className="fixed bottom-4 right-4">
             <UserGuide />
         </div>
