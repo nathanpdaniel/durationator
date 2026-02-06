@@ -10,7 +10,7 @@ import UserGuide from '@/components/user-guide';
 import WeeklyProgress from '@/components/weekly-progress';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type Duration = {
@@ -122,10 +122,18 @@ export default function Home() {
     setTargetDuration(value);
   };
 
-  const totalMinutes = useMemo(() => {
+  const grandTotalMinutes = useMemo(() => {
     return durations.reduce((acc, duration) => {
       return acc + parseDurationToMinutes(duration.entry);
     }, 0);
+  }, [durations]);
+
+  const totalMinutesToday = useMemo(() => {
+    return durations
+      .filter((d) => isToday(d.createdAt))
+      .reduce((acc, duration) => {
+        return acc + parseDurationToMinutes(duration.entry);
+      }, 0);
   }, [durations]);
 
   const targetTotalMinutes = useMemo(() => {
@@ -134,17 +142,17 @@ export default function Home() {
 
   const remainingMinutes = useMemo(() => {
     if (targetTotalMinutes <= 0) return 0;
-    return targetTotalMinutes - totalMinutes;
-  }, [targetTotalMinutes, totalMinutes]);
+    return targetTotalMinutes - totalMinutesToday;
+  }, [targetTotalMinutes, totalMinutesToday]);
 
   const displayedTotalMinutes = useMemo(() => {
     if (timerState !== 'stopped') {
       const elapsedSeconds = initialCountdownSeconds - countdownSeconds;
       const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-      return totalMinutes + elapsedMinutes;
+      return grandTotalMinutes + elapsedMinutes;
     }
-    return totalMinutes;
-  }, [timerState, totalMinutes, initialCountdownSeconds, countdownSeconds]);
+    return grandTotalMinutes;
+  }, [timerState, grandTotalMinutes, initialCountdownSeconds, countdownSeconds]);
 
   const formatDuration = (mins: number) => {
     if (mins < 0) mins = 0;
