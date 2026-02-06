@@ -31,8 +31,8 @@ const formatWeeklyDuration = (mins: number) => {
 export default function WeeklyProgress({ durations, weeklyTargetHours, onWeeklyTargetChange }: WeeklyProgressProps) {
   const weeklyData = useMemo(() => {
     const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const weekStart = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
+    const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
     const daysOfWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     const chartData = daysOfWeek.map(day => ({
