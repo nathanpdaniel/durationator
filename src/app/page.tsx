@@ -114,6 +114,27 @@ export default function Home() {
   };
 
   const handlePause = () => {
+    const elapsedSeconds = initialCountdownSeconds - countdownSeconds;
+    const elapsedWholeMinutes = Math.floor(elapsedSeconds / 60);
+
+    if (elapsedWholeMinutes > 0) {
+      const hours = Math.floor(elapsedWholeMinutes / 60);
+      const minutes = elapsedWholeMinutes % 60;
+      
+      const newDuration = {
+        id: nextId,
+        hours: String(hours),
+        minutes: String(minutes),
+      };
+
+      setDurations([...durations, newDuration]);
+      setNextId(nextId + 1);
+
+      // Reset the timer's accrual baseline, but keep the leftover seconds
+      const remainingTimerSeconds = elapsedSeconds % 60;
+      setInitialCountdownSeconds(countdownSeconds + remainingTimerSeconds);
+    }
+    
     setTimerState('paused');
   };
   
